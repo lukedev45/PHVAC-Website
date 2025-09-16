@@ -1,8 +1,8 @@
 
 {% extends 'base.html' %}
 {% block content %}
-<div class="flex items-start gap-6">
-  <aside class="w-72 shrink-0 bg-white rounded-2xl shadow p-4 self-stretch">
+<div class="md:flex md:items-start md:gap-6">
+  <aside class="md:w-72 md:shrink-0 bg-white rounded-2xl shadow p-4 md:self-stretch mb-4 md:mb-0">
     <h2 class="font-semibold mb-2">Filters</h2>
     <form method="get" action="/dashboard" class="space-y-3">
       <div>
@@ -23,7 +23,7 @@
           {% endfor %}
         </select>
       </div>
-      <div class="grid grid-cols-2 gap-2">
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
         <div>
           <label class="block text-sm mb-1">From</label>
           <input type="date" name="from" value="{{from or ''}}" class="w-full h-10 border rounded-lg px-2" />
@@ -51,38 +51,40 @@
     </div>
 
     <div class="bg-white rounded-2xl shadow overflow-hidden">
-      <table class="w-full table-fixed">
-        <colgroup>
-          <col class="w-[40%]">
-          <col class="w-[18%]">
-          <col class="w-[16%]">
-          <col class="w-[14%]">
-          <col class="w-[12%]">
-        </colgroup>
-        <thead class="bg-gray-50 text-left text-sm">
-          <tr>
-            <th class="p-3 align-top">Title</th>
-            <th class="p-3 align-top">Assignee</th>
-            <th class="p-3 align-top">Due</th>
-            <th class="p-3 align-top">Status</th>
-            <th class="p-3 align-top">Updated</th>
-          </tr>
-        </thead>
-        <tbody class="text-sm">
-          {% for t in tasks %}
-          <tr class="border-t hover:bg-gray-50 align-top">
-            <td class="p-3 align-top">
-              <a class="underline font-medium" href="/tasks/{{t.id}}">{{t.title}}</a>
-              <div class="text-xs text-gray-500 leading-snug mt-1">{{t.description[:120]}}{% if t.description|length>120 %}…{% endif %}</div>
-            </td>
-            <td class="p-3 align-top">{{ user_by_id.get(t.assignee_id).full_name if t.assignee_id else '-' }}</td>
-            <td class="p-3 align-top">{{ t.due_date or '-' }}</td>
-            <td class="p-3 align-top">{{ t.status.replace('_',' ').title() }}</td>
-            <td class="p-3 align-top">{{ t.updated_at.strftime('%Y-%m-%d %H:%M') }}</td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+      <div class="overflow-x-auto">
+        <table class="w-full table-fixed min-w-[700px]">
+          <colgroup>
+            <col class="w-[40%]">
+            <col class="w-[18%]">
+            <col class="w-[16%]">
+            <col class="w-[14%]">
+            <col class="w-[12%]">
+          </colgroup>
+          <thead class="bg-gray-50 text-left text-sm">
+            <tr>
+              <th class="p-3 align-top">Title</th>
+              <th class="p-3 align-top">Assignee</th>
+              <th class="p-3 align-top">Due</th>
+              <th class="p-3 align-top">Status</th>
+              <th class="p-3 align-top">Updated</th>
+            </tr>
+          </thead>
+          <tbody class="text-sm">
+            {% for t in tasks %}
+            <tr class="border-t hover:bg-gray-50 align-top">
+              <td class="p-3 align-top">
+                <a class="underline font-medium" href="/tasks/{{t.id}}">{{t.title}}</a>
+                <div class="text-xs text-gray-500 leading-snug mt-1">{{t.description[:120]}}{% if t.description|length>120 %}…{% endif %}</div>
+              </td>
+              <td class="p-3 align-top">{{ user_by_id.get(t.assignee_id).full_name if t.assignee_id else '-' }}</td>
+              <td class="p-3 align-top">{{ t.due_date or '-' }}</td>
+              <td class="p-3 align-top">{{ t.status.replace('_',' ').title() }}</td>
+              <td class="p-3 align-top">{{ t.updated_at.strftime('%Y-%m-%d %H:%M') }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
     </div>
   </section>
 </div>

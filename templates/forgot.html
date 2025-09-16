@@ -1,0 +1,21 @@
+
+{% extends 'base.html' %}
+{% block content %}
+<div class="max-w-md mx-auto bg-white p-6 rounded-xl shadow">
+  <h1 class="text-xl font-semibold mb-4">Forgot password</h1>
+  <form method="post" action="/forgot" class="space-y-3">
+    <div>
+      <label class="block text-sm">Username</label>
+      <input name="username" class="w-full border rounded px-3 py-2" required />
+    </div>
+    <button class="w-full bg-black text-white rounded py-2">Generate reset link</button>
+  </form>
+  {% if reset_url %}
+  <div class="mt-4 p-3 bg-gray-50 border rounded text-sm">
+    <p class="font-medium">Reset link created (valid 24h):</p>
+    <a class="underline break-all" href="{{ reset_url }}">{{ reset_url }}</a>
+    <p class="text-xs text-gray-500 mt-2">Copy this link and send it securely to the user.</p>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

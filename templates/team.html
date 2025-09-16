@@ -3,9 +3,8 @@
 {% block content %}
 <div class="bg-white p-6 rounded-xl shadow max-w-3xl">
   <div class="flex justify-between items-center mb-4">
-    <h1 class="text-xl font-semibold">Team</h1>
     {% if current_user and current_user.role=='manager' %}
-    <form method="post" action="/team/new" class="flex gap-2 items-end">
+    <form method="post" action="/team/new" class="flex flex-wrap gap-1 items-end">
       <div>
         <label class="block text-sm">Full name</label>
         <input name="full_name" class="border rounded px-2 py-1" required />
