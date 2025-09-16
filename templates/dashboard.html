@@ -1,0 +1,82 @@
+
+{% extends 'base.html' %}
+{% block content %}
+<div class="flex items-start gap-4">
+  <aside class="w-64 bg-white rounded-xl shadow p-4">
+    <h2 class="font-semibold mb-2">Filters</h2>
+    <form method="get" action="/dashboard" class="space-y-2">
+      <div>
+        <label class="block text-sm">Assignee</label>
+        <select name="assignee_id" class="w-full border rounded px-2 py-1">
+          <option value="">All</option>
+          {% for u in users %}
+          <option value="{{u.id}}" {% if assignee_id and assignee_id|int == u.id %}selected{% endif %}>{{u.full_name}}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label class="block text-sm">Status</label>
+        <select name="status" class="w-full border rounded px-2 py-1">
+          <option value="">All</option>
+          {% for s in ["todo","in_progress","done"] %}
+          <option value="{{s}}" {% if status_val==s %}selected{% endif %}>{{s.replace('_',' ').title()}}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="grid grid-cols-2 gap-2">
+        <div>
+          <label class="block text-sm">From</label>
+          <input type="date" name="from" value="{{from or ''}}" class="w-full border rounded px-2 py-1" />
+        </div>
+        <div>
+          <label class="block text-sm">To</label>
+          <input type="date" name="to" value="{{to or ''}}" class="w-full border rounded px-2 py-1" />
+        </div>
+      </div>
+      <button class="w-full bg-gray-900 text-white rounded py-1">Apply</button>
+    </form>
+
+    <hr class="my-4" />
+    <form method="post" action="/import" enctype="multipart/form-data" class="space-y-2">
+      <label class="block text-sm">Import CSV</label>
+      <input type="file" name="file" accept=".csv" class="w-full text-sm" required />
+      <button class="w-full bg-gray-100 rounded py-1">Upload</button>
+    </form>
+  </aside>
+
+  <section class="flex-1">
+    <div class="flex justify-between items-center mb-3">
+      <h1 class="text-xl font-semibold">Tasks</h1>
+      <a href="/tasks/new" class="px-3 py-2 rounded bg-black text-white">+ New Task</a>
+    </div>
+
+    <div class="bg-white rounded-xl shadow overflow-hidden">
+      <table class="w-full">
+        <thead class="bg-gray-50 text-left text-sm">
+          <tr>
+            <th class="p-3">Title</th>
+            <th class="p-3">Assignee</th>
+            <th class="p-3">Due</th>
+            <th class="p-3">Status</th>
+            <th class="p-3">Updated</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for t in tasks %}
+          <tr class="border-t hover:bg-gray-50">
+            <td class="p-3">
+              <a class="underline" href="/tasks/{{t.id}}">{{t.title}}</a>
+              <div class="text-xs text-gray-500">{{t.description[:80]}}{% if t.description|length>80 %}…{% endif %}</div>
+            </td>
+            <td class="p-3">{{ user_by_id.get(t.assignee_id).full_name if t.assignee_id else '-' }}</td>
+            <td class="p-3">{{ t.due_date or '-' }}</td>
+            <td class="p-3">{{ t.status.replace('_',' ').title() }}</td>
+            <td class="p-3 text-sm">{{ t.updated_at.strftime('%Y-%m-%d %H:%M') }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+</div>
+{% endblock %}

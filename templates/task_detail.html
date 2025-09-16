@@ -1,0 +1,39 @@
+
+{% extends 'base.html' %}
+{% block content %}
+<div class="grid md:grid-cols-3 gap-4">
+  <section class="md:col-span-2 bg-white rounded-xl shadow p-4">
+    <div class="flex justify-between items-start">
+      <div>
+        <h1 class="text-xl font-semibold">{{task.title}}</h1>
+        <div class="text-sm text-gray-600">Due: {{task.due_date or '-'}} • Assigned to: {{ assignee.full_name if assignee else '-' }}</div>
+      </div>
+      <form method="post" action="/tasks/{{task.id}}/status" class="flex items-center gap-2">
+        <select name="status" class="border rounded px-2 py-1">
+          {% for s in ["todo","in_progress","done"] %}
+          <option value="{{s}}" {% if task.status==s %}selected{% endif %}>{{s.replace('_',' ').title()}}</option>
+          {% endfor %}
+        </select>
+        <button class="px-3 py-1 rounded bg-gray-900 text-white">Update</button>
+      </form>
+    </div>
+    <p class="mt-4 whitespace-pre-line">{{task.description}}</p>
+  </section>
+
+  <aside class="bg-white rounded-xl shadow p-4">
+    <h2 class="font-semibold mb-2">Notes</h2>
+    <div id="notes">
+      {% for n in notes %}
+      <div class="border rounded p-2 mb-2">
+        <div class="text-xs text-gray-500">{{n.created_at.strftime('%Y-%m-%d %H:%M')}} • {{ users_map[n.author_id].full_name }}</div>
+        <div class="text-sm whitespace-pre-line">{{n.content}}</div>
+      </div>
+      {% endfor %}
+    </div>
+    <form hx-post="/tasks/{{task.id}}/notes" hx-target="#notes" hx-swap="beforeend" class="mt-2 grid gap-2">
+      <textarea name="content" class="w-full border rounded px-2 py-1" rows="3" placeholder="Add a note..." required></textarea>
+      <button class="bg-gray-900 text-white rounded py-1">Add Note</button>
+    </form>
+  </aside>
+</div>
+{% endblock %}

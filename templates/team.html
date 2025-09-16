@@ -1,0 +1,48 @@
+
+{% extends 'base.html' %}
+{% block content %}
+<div class="bg-white p-6 rounded-xl shadow max-w-3xl">
+  <div class="flex justify-between items-center mb-4">
+    <h1 class="text-xl font-semibold">Team</h1>
+    {% if current_user and current_user.role=='manager' %}
+    <form method="post" action="/team/new" class="flex gap-2 items-end">
+      <div>
+        <label class="block text-sm">Full name</label>
+        <input name="full_name" class="border rounded px-2 py-1" required />
+      </div>
+      <div>
+        <label class="block text-sm">Username</label>
+        <input name="username" class="border rounded px-2 py-1" required />
+      </div>
+      <div>
+        <label class="block text-sm">Password</label>
+        <input type="password" name="password" class="border rounded px-2 py-1" required />
+      </div>
+      <div>
+        <label class="block text-sm">Role</label>
+        <select name="role" class="border rounded px-2 py-1">
+          <option value="member">Member</option>
+          <option value="manager">Manager</option>
+        </select>
+      </div>
+      <button class="bg-black text-white rounded px-3 py-1">Add</button>
+    </form>
+    {% endif %}
+  </div>
+
+  <table class="w-full text-left">
+    <thead class="bg-gray-50 text-sm">
+      <tr><th class="p-2">Name</th><th class="p-2">Username</th><th class="p-2">Role</th></tr>
+    </thead>
+    <tbody>
+      {% for u in users %}
+      <tr class="border-t">
+        <td class="p-2">{{u.full_name}}</td>
+        <td class="p-2">{{u.username}}</td>
+        <td class="p-2">{{u.role.title()}}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}
