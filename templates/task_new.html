@@ -1,25 +1,25 @@
 
 {% extends 'base.html' %}
 {% block content %}
-<div class="max-w-2xl bg-white p-6 rounded-xl shadow">
+<div class="max-w-2xl bg-white p-6 rounded-2xl shadow">
   <h1 class="text-xl font-semibold mb-4">New Task</h1>
   <form method="post" action="/tasks/new" class="grid gap-3">
     <div>
-      <label class="block text-sm">Title</label>
-      <input name="title" class="w-full border rounded px-3 py-2" required />
+      <label class="block text-sm mb-1">Title</label>
+      <input name="title" class="w-full h-10 border rounded-lg px-3" required />
     </div>
     <div>
-      <label class="block text-sm">Description</label>
-      <textarea name="description" class="w-full border rounded px-3 py-2" rows="4"></textarea>
+      <label class="block text-sm mb-1">Description</label>
+      <textarea name="description" class="w-full border rounded-lg px-3 py-2" rows="4"></textarea>
     </div>
-    <div class="grid grid-cols-2 gap-3">
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
       <div>
-        <label class="block text-sm">Due date</label>
-        <input type="date" name="due_date" class="w-full border rounded px-3 py-2" />
+        <label class="block text-sm mb-1">Due date</label>
+        <input type="date" name="due_date" class="w-full h-10 border rounded-lg px-3" />
       </div>
       <div>
-        <label class="block text-sm">Assignee</label>
-        <select name="assignee_id" class="w-full border rounded px-3 py-2">
+        <label class="block text-sm mb-1">Assignee</label>
+        <select name="assignee_id" class="w-full h-10 border rounded-lg px-3">
           <option value="">Unassigned</option>
           {% for u in users %}
             <option value="{{u.id}}">{{u.full_name}}</option>
@@ -27,7 +27,7 @@
         </select>
       </div>
     </div>
-    <button class="bg-black text-white rounded py-2">Create</button>
+    <button class="h-10 bg-black text-white rounded-lg">Create</button>
   </form>
 </div>
 {% endblock %}
