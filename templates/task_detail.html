@@ -8,14 +8,21 @@
         <h1 class="text-xl font-semibold leading-tight">{{task.title}}</h1>
         <div class="text-sm text-gray-600 mt-1">Due: {{task.due_date or '-'}} • Assigned to: {{ assignee.full_name if assignee else '-' }}</div>
       </div>
-      <form method="post" action="/tasks/{{task.id}}/status" class="flex items-center gap-2 shrink-0">
-        <select name="status" class="border rounded-lg px-2 h-10">
-          {% for s in ["todo","in_progress","done"] %}
-          <option value="{{s}}" {% if task.status==s %}selected{% endif %}>{{s.replace('_',' ').title()}}</option>
-          {% endfor %}
-        </select>
-        <button class="px-3 h-10 rounded-lg bg-gray-900 text-white">Update</button>
-      </form>
+      <div class="flex items-center gap-2 shrink-0">
+        <form method="post" action="/tasks/{{task.id}}/status" class="flex items-center gap-2 shrink-0">
+          <select name="status" class="border rounded-lg px-2 h-10">
+            {% for s in ["todo","in_progress","done"] %}
+            <option value="{{s}}" {% if task.status==s %}selected{% endif %}>{{s.replace('_',' ').title()}}</option>
+            {% endfor %}
+          </select>
+          <button class="px-3 h-10 rounded-lg bg-gray-900 text-white">Update</button>
+        </form>
+        {% if task.status == 'done' %}
+        <form method="post" action="/tasks/{{task.id}}/delete" onsubmit="return confirm('Delete this task? This cannot be undone.')" class="shrink-0">
+          <button class="px-3 h-10 rounded-lg bg-red-600 text-white">Delete</button>
+        </form>
+        {% endif %}
+      </div>
     </div>
     <p class="mt-4 whitespace-pre-line leading-relaxed">{{task.description}}</p>
   </section>

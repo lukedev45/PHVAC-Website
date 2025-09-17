@@ -28,6 +28,8 @@ Security / "only at work":
 - Run this on an internal machine (Windows works). Colleagues connect over VPN or office LAN.  
 - Optionally put behind a reverse proxy with IP allowlisting (IIS/NGINX) or Cloudflare Tunnel + Zero Trust (free for small teams).  
 - App also has its own login; restrict who you create as users.
+
+
 """
 
 from __future__ import annotations
@@ -104,8 +106,9 @@ TEMPLATES_DIR = os.path.join(os.path.dirname(__file__), "templates")
 os.makedirs(TEMPLATES_DIR, exist_ok=True)
 templates = Jinja2Templates(directory=TEMPLATES_DIR)
 
-# Serve a minimal favicon/static (kept simple; no /static folder required for now)
+# Serve static files
 app.mount("/static", StaticFiles(directory=TEMPLATES_DIR), name="static")
+app.mount("/assets", StaticFiles(directory=os.path.join(os.path.dirname(__file__), "assets")), name="assets")
 
 # ----------------------
 # DB init
@@ -154,6 +157,9 @@ BASE_HTML = """
   <script src="https://unpkg.com/htmx.org@2.0.2"></script>
   <script src="https://unpkg.com/hyperscript.org@0.9.12"></script>
   <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="icon" type="image/png" href="/assets/images/favicon-32x32.png" sizes="32x32" />
+  <link rel="icon" type="image/png" href="/assets/images/favicon-16x16.png" sizes="16x16" />
+  <link rel="icon" href="/assets/images/favicon.ico" sizes="any" />
 </head>
 <body class="bg-gray-50 text-gray-900">
   <header class="bg-white shadow">
@@ -210,7 +216,6 @@ BOOTSTRAP_HTML = """
 {% extends 'base.html' %}
 {% block content %}
 <div class="max-w-md mx-auto bg-white p-6 rounded-xl shadow">
-  <h1 class="text-xl font-semibold mb-4">Create first manager</h1>
   <form method="post" action="/bootstrap" class="space-y-3">
     <div>
       <label class="block text-sm">Full Name</label>
@@ -368,14 +373,21 @@ TASK_DETAIL_HTML = """
         <h1 class="text-xl font-semibold leading-tight">{{task.title}}</h1>
         <div class="text-sm text-gray-600 mt-1">Due: {{task.due_date or '-'}} • Assigned to: {{ assignee.full_name if assignee else '-' }}</div>
       </div>
-      <form method="post" action="/tasks/{{task.id}}/status" class="flex items-center gap-2 shrink-0">
-        <select name="status" class="border rounded-lg px-2 h-10">
-          {% for s in ["todo","in_progress","done"] %}
-          <option value="{{s}}" {% if task.status==s %}selected{% endif %}>{{s.replace('_',' ').title()}}</option>
-          {% endfor %}
-        </select>
-        <button class="px-3 h-10 rounded-lg bg-gray-900 text-white">Update</button>
-      </form>
+      <div class="flex items-center gap-2 shrink-0">
+        <form method="post" action="/tasks/{{task.id}}/status" class="flex items-center gap-2 shrink-0">
+          <select name="status" class="border rounded-lg px-2 h-10">
+            {% for s in ["todo","in_progress","done"] %}
+            <option value="{{s}}" {% if task.status==s %}selected{% endif %}>{{s.replace('_',' ').title()}}</option>
+            {% endfor %}
+          </select>
+          <button class="px-3 h-10 rounded-lg bg-gray-900 text-white">Update</button>
+        </form>
+        {% if task.status == 'done' %}
+        <form method="post" action="/tasks/{{task.id}}/delete" onsubmit="return confirm('Delete this task? This cannot be undone.')" class="shrink-0">
+          <button class="px-3 h-10 rounded-lg bg-red-600 text-white">Delete</button>
+        </form>
+        {% endif %}
+      </div>
     </div>
     <p class="mt-4 whitespace-pre-line leading-relaxed">{{task.description}}</p>
   </section>
@@ -404,9 +416,8 @@ TEAM_HTML = """
 {% block content %}
 <div class="bg-white p-6 rounded-xl shadow max-w-3xl">
   <div class="flex justify-between items-center mb-4">
-    <h1 class="text-xl font-semibold">Team</h1>
     {% if current_user and current_user.role=='manager' %}
-    <form method="post" action="/team/new" class="flex gap-2 items-end">
+    <form method="post" action="/team/new" class="flex flex-wrap gap-1 items-end">
       <div>
         <label class="block text-sm">Full name</label>
         <input name="full_name" class="border rounded px-2 py-1" required />
@@ -458,7 +469,6 @@ FORGOT_HTML = """
     <div>
       <label class="block text-sm">Username</label>
       <input name="username" class="w-full border rounded px-3 py-2" required />
-      <p class="text-xs text-gray-500 mt-1">Usernames are not case-sensitive.</p>
     </div>
     <button class="w-full bg-black text-white rounded py-2">Generate reset link</button>
   </form>
@@ -630,6 +640,21 @@ def task_status(task_id: int, status: str = Form(...), db: Session = Depends(get
     db.commit()
     return RedirectResponse(f"/tasks/{task_id}", status_code=302)
 
+@app.post("/tasks/{task_id}/delete")
+def task_delete(task_id: int, db: Session = Depends(get_db), user: Optional[User] = Depends(get_current_user)):
+    login_required(user)
+    t = db.get(Task, task_id)
+    if not t:
+        raise HTTPException(404)
+    if t.status != TaskStatus.DONE:
+        raise HTTPException(400, "Only completed tasks can be deleted")
+    notes = db.exec(select(Note).where(Note.task_id == task_id)).all()
+    for n in notes:
+        db.delete(n)
+    db.delete(t)
+    db.commit()
+    return RedirectResponse("/dashboard", status_code=302)
+
 @app.post("/tasks/{task_id}/notes", response_class=HTMLResponse)
 async def add_note(request: Request, task_id: int, content: str = Form(...), db: Session = Depends(get_db), user: Optional[User] = Depends(get_current_user)):
     login_required(user)
@@ -767,7 +792,7 @@ def health():
 
 @app.get("/favicon.ico")
 def favicon():
-    return HTMLResponse("", status_code=204)
+    return RedirectResponse("/assets/images/favicon.ico", status_code=302)
 
 # ----------------------
 # Optional: minimal smoke tests (run only if RUN_SMOKE_TESTS=1)
