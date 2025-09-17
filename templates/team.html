@@ -1,7 +1,7 @@
 
 {% extends 'base.html' %}
 {% block content %}
-<div class="bg-white p-6 rounded-xl shadow max-w-3xl">
+<div class="bg-white p-8 rounded-2xl shadow max-w-6xl mx-auto">
   <div class="flex justify-between items-center mb-4">
     {% if current_user and current_user.role=='manager' %}
     <form method="post" action="/team/new" class="flex flex-wrap gap-1 items-end">
