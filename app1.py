@@ -161,7 +161,7 @@ BASE_HTML = """
   <link rel="icon" type="image/png" href="/assets/images/favicon-16x16.png" sizes="16x16" />
   <link rel="icon" href="/assets/images/favicon.ico" sizes="any" />
 </head>
-<body class="bg-gray-50 text-gray-900">
+<body class="min-h-screen flex flex-col bg-gray-50 text-gray-900">
   <header class="bg-white shadow">
     <div class="max-w-7xl mx-auto p-4 flex justify-between items-center">
       <a href="/" class="font-semibold">🗂️ Team Tasks</a>
@@ -180,9 +180,14 @@ BASE_HTML = """
       </nav>
     </div>
   </header>
-  <main class="max-w-7xl mx-auto p-4">
+  <main class="max-w-7xl mx-auto p-4 flex-grow">
     {% block content %}{% endblock %}
   </main>
+  <footer class="bg-white border-t mt-8">
+    <div class="max-w-7xl mx-auto p-4 text-center text-sm text-gray-500">
+      Copyright 2025 Principal HVAC - Total HVAC Solutions. All Rights Reserved.
+    </div>
+  </footer>
 </body>
 </html>
 """
@@ -190,13 +195,12 @@ BASE_HTML = """
 LOGIN_HTML = """
 {% extends 'base.html' %}
 {% block content %}
-<div class="max-w-md mx-auto bg-white p-6 rounded-xl shadow">
+<div class="max-w-md mx-auto bg-white p-8 rounded-2xl shadow">
   <h1 class="text-xl font-semibold mb-4">Sign in</h1>
   <form method="post" action="/login" class="space-y-3">
     <div>
       <label class="block text-sm">Username</label>
       <input name="username" class="w-full border rounded px-3 py-2" required />
-      <p class="text-xs text-gray-500 mt-1">Usernames are not case-sensitive.</p>
     </div>
     <div>
       <label class="block text-sm">Password</label>
@@ -204,9 +208,8 @@ LOGIN_HTML = """
     </div>
     <button class="w-full bg-black text-white rounded py-2">Sign in</button>
   </form>
-  <div class="flex justify-between text-xs text-gray-600 mt-4">
+  <div class="flex justify-between text-xs text-gray-600 mt-6">
     <a class="underline" href="/forgot">Forgot password?</a>
-    <a class="underline" href="/bootstrap">Create first manager</a>
   </div>
 </div>
 {% endblock %}
@@ -215,7 +218,7 @@ LOGIN_HTML = """
 BOOTSTRAP_HTML = """
 {% extends 'base.html' %}
 {% block content %}
-<div class="max-w-md mx-auto bg-white p-6 rounded-xl shadow">
+<div class="max-w-2xl mx-auto bg-white p-8 rounded-2xl shadow">
   <form method="post" action="/bootstrap" class="space-y-3">
     <div>
       <label class="block text-sm">Full Name</label>
@@ -331,7 +334,7 @@ DASHBOARD_HTML = """
 TASK_NEW_HTML = """
 {% extends 'base.html' %}
 {% block content %}
-<div class="max-w-2xl bg-white p-6 rounded-2xl shadow">
+<div class="max-w-4xl mx-auto bg-white p-8 rounded-2xl shadow">
   <h1 class="text-xl font-semibold mb-4">New Task</h1>
   <form method="post" action="/tasks/new" class="grid gap-3">
     <div>
@@ -366,7 +369,7 @@ TASK_NEW_HTML = """
 TASK_DETAIL_HTML = """
 {% extends 'base.html' %}
 {% block content %}
-<div class="grid md:grid-cols-3 gap-6">
+<div class="grid md:grid-cols-3 gap-6 max-w-6xl mx-auto">
   <section class="md:col-span-2 bg-white rounded-2xl shadow p-5">
     <div class="flex justify-between items-start gap-4">
       <div class="min-w-0">
@@ -414,7 +417,7 @@ TASK_DETAIL_HTML = """
 TEAM_HTML = """
 {% extends 'base.html' %}
 {% block content %}
-<div class="bg-white p-6 rounded-xl shadow max-w-3xl">
+<div class="bg-white p-8 rounded-2xl shadow max-w-6xl mx-auto">
   <div class="flex justify-between items-center mb-4">
     {% if current_user and current_user.role=='manager' %}
     <form method="post" action="/team/new" class="flex flex-wrap gap-1 items-end">
@@ -463,7 +466,7 @@ TEAM_HTML = """
 FORGOT_HTML = """
 {% extends 'base.html' %}
 {% block content %}
-<div class="max-w-md mx-auto bg-white p-6 rounded-xl shadow">
+<div class="max-w-2xl mx-auto bg-white p-8 rounded-2xl shadow">
   <h1 class="text-xl font-semibold mb-4">Forgot password</h1>
   <form method="post" action="/forgot" class="space-y-3">
     <div>
@@ -486,7 +489,7 @@ FORGOT_HTML = """
 RESET_HTML = """
 {% extends 'base.html' %}
 {% block content %}
-<div class="max-w-md mx-auto bg-white p-6 rounded-xl shadow">
+<div class="max-w-2xl mx-auto bg-white p-8 rounded-2xl shadow">
   <h1 class="text-xl font-semibold mb-4">Reset password</h1>
   {% if error %}
     <div class="mb-3 p-2 text-sm bg-red-50 border border-red-200 rounded text-red-800">{{ error }}</div>
