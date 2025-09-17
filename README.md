@@ -38,7 +38,7 @@ Clone the repo and install dependencies:
 ```bash
 
 git clone https://github.com/lukedev45/PHVAC-Website.git
-cd hvac-task-manager
+cd PHVAC-Website
 pip install -r requirements.txt
 
 ```
