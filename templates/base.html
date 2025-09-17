@@ -12,7 +12,7 @@
   <link rel="icon" type="image/png" href="/assets/images/favicon-16x16.png" sizes="16x16" />
   <link rel="icon" href="/assets/images/favicon.ico" sizes="any" />
 </head>
-<body class="bg-gray-50 text-gray-900">
+<body class="min-h-screen flex flex-col bg-gray-50 text-gray-900">
   <header class="bg-white shadow">
     <div class="max-w-7xl mx-auto p-4 flex justify-between items-center">
       <a href="/" class="font-semibold">🗂️ Team Tasks</a>
@@ -31,8 +31,13 @@
       </nav>
     </div>
   </header>
-  <main class="max-w-7xl mx-auto p-4">
+  <main class="max-w-7xl mx-auto p-4 flex-grow">
     {% block content %}{% endblock %}
   </main>
+  <footer class="bg-white border-t mt-8">
+    <div class="max-w-7xl mx-auto p-4 text-center text-sm text-gray-500">
+      Copyright 2025 Principal HVAC - Total HVAC Solutions. All Rights Reserved.
+    </div>
+  </footer>
 </body>
 </html>
