@@ -24,12 +24,6 @@ How to run:
 
 3) First user: When you start, no users exist. Go to /bootstrap to create the first manager account.
 
-Security / "only at work":
-- Run this on an internal machine (Windows works). Colleagues connect over VPN or office LAN.  
-- Optionally put behind a reverse proxy with IP allowlisting (IIS/NGINX) or Cloudflare Tunnel + Zero Trust (free for small teams).  
-- App also has its own login; restrict who you create as users.
-
-
 """
 
 from __future__ import annotations
@@ -48,18 +42,14 @@ from starlette.middleware.sessions import SessionMiddleware
 from passlib.context import CryptContext
 from sqlmodel import Field, SQLModel, Session, create_engine, select, Column, Date
 
-# ----------------------
 # Config
-# ----------------------
 SECRET_KEY = os.environ.get("APP_SECRET", "replace-me-with-a-long-random-secret")
 DB_URL = os.environ.get("DB_URL", "sqlite:///./tasks.db")
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 engine = create_engine(DB_URL, connect_args={"check_same_thread": False} if DB_URL.startswith("sqlite") else {})
 
-# ----------------------
 # Models
-# ----------------------
 class User(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     username: str = Field(index=True, unique=True)
@@ -96,9 +86,8 @@ class PasswordReset(SQLModel, table=True):
     expires_at: datetime = Field(default_factory=lambda: datetime.utcnow() + timedelta(days=1))
     used: bool = Field(default=False)
 
-# ----------------------
+
 # App + Templates
-# ----------------------
 app = FastAPI()
 app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY, https_only=False)
 
@@ -110,15 +99,11 @@ templates = Jinja2Templates(directory=TEMPLATES_DIR)
 app.mount("/static", StaticFiles(directory=TEMPLATES_DIR), name="static")
 app.mount("/assets", StaticFiles(directory=os.path.join(os.path.dirname(__file__), "assets")), name="assets")
 
-# ----------------------
+
 # DB init
-# ----------------------
 SQLModel.metadata.create_all(engine)
 
-# ----------------------
 # Utilities
-# ----------------------
-
 def get_db():
     with Session(engine) as session:
         yield session
@@ -132,8 +117,7 @@ def verify_password(password: str, password_hash: str) -> bool:
 def normalize_username(u: str) -> str:
     return (u or "").strip().lower()
 
-# --- Auth helpers ---
-
+#Auth helpers
 def get_current_user(request: Request, db: Session = Depends(get_db)) -> Optional[User]:
     uid = request.session.get("user_id")
     if not uid:
@@ -144,9 +128,8 @@ def login_required(user: Optional[User]):
     if not user:
         raise HTTPException(status_code=status.HTTP_302_FOUND, detail="Redirect", headers={"Location": "/login"})
 
-# ----------------------
+
 # Template base (written to disk at startup)
-# ----------------------
 BASE_HTML = """
 <!DOCTYPE html>
 <html lang="en">
@@ -527,9 +510,8 @@ with open(os.path.join(TEMPLATES_DIR, "forgot.html"), "w", encoding="utf-8") as 
 with open(os.path.join(TEMPLATES_DIR, "reset.html"), "w", encoding="utf-8") as f:
     f.write(RESET_HTML)
 
-# ----------------------
+
 # Routes
-# ----------------------
 @app.get("/", response_class=HTMLResponse)
 def root(request: Request, user: Optional[User] = Depends(get_current_user)):
     if not user:
@@ -737,9 +719,8 @@ def export_csv(db: Session = Depends(get_db), user: Optional[User] = Depends(get
             yield ','.join(row) + "\n"
     return StreamingResponse(gen(), media_type='text/csv', headers={"Content-Disposition": "attachment; filename=tasks.csv"})
 
-# ----------------------
+
 # Forgot password flow
-# ----------------------
 @app.get("/forgot", response_class=HTMLResponse)
 def forgot_get(request: Request, user: Optional[User] = Depends(get_current_user)):
     return templates.TemplateResponse("forgot.html", {"request": request, "title": "Forgot password", "current_user": user, "reset_url": None})
@@ -784,9 +765,8 @@ def reset_post(request: Request, token: str, password: str = Form(...), password
     db.commit()
     return RedirectResponse("/login", status_code=302)
 
-# --------------
+
 # Healthcheck / favicon
-# --------------
 @app.get("/health")
 def health():
     return {"ok": True}
@@ -795,10 +775,8 @@ def health():
 def favicon():
     return RedirectResponse("/assets/images/favicon.ico", status_code=302)
 
-# ----------------------
-# Optional: minimal smoke tests (run only if RUN_SMOKE_TESTS=1)
-# ----------------------
 
+#minimal smoke tests (run only if RUN_SMOKE_TESTS=1)
 def _run_smoke_tests():
     client = TestClient(app)
 
