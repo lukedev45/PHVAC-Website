@@ -1,19 +1,34 @@
 
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="dark">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>{{ title or 'Team Tasks' }}</title>
+  <script>
+    window.tailwind = { config: { darkMode: 'class' } };
+  </script>
   <script src="https://unpkg.com/htmx.org@2.0.2"></script>
   <script src="https://unpkg.com/hyperscript.org@0.9.12"></script>
   <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .dark body { background-color: #0f172a; color: #e5e7eb; }
+    .dark .bg-white { background-color: #1f2937 !important; }
+    .dark .bg-gray-50 { background-color: #0b1220 !important; }
+    /* text colors are controlled by existing classes in light mode; do not override in light */
+    .dark .border, .dark .border-t { border-color: #374151 !important; }
+    .dark .hover\:bg-gray-50:hover { background-color: #111827 !important; }
+    .dark input, .dark select, .dark textarea { background-color: #111827; color: #e5e7eb; border-color: #374151; }
+    /* Make native date input calendar icon white in dark mode (Chromium/WebKit) */
+    .dark input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(1); }
+    .dark a.underline { color: #93c5fd; }
+  </style>
   <link rel="icon" type="image/png" href="/assets/images/favicon-32x32.png" sizes="32x32" />
   <link rel="icon" type="image/png" href="/assets/images/favicon-16x16.png" sizes="16x16" />
   <link rel="icon" href="/assets/images/favicon.ico" sizes="any" />
 </head>
-<body class="min-h-screen flex flex-col bg-gray-50 text-gray-900">
-  <header class="bg-white shadow">
+<body class="min-h-screen flex flex-col bg-gray-50 text-gray-900 dark:bg-gray-900 dark:text-gray-100">
+  <header class="bg-white shadow dark:bg-gray-800">
     <div class="max-w-7xl mx-auto p-4 flex justify-between items-center">
       <a href="/" class="font-semibold">🗂️ Team Tasks</a>
       <nav class="flex items-center gap-4">
@@ -23,7 +38,7 @@
           <a class="text-sm hover:underline" href="/team">Team</a>
           <a class="text-sm hover:underline" href="/export">Export CSV</a>
           <form method="post" action="/logout">
-            <button class="text-sm px-3 py-1 rounded bg-gray-100 hover:bg-gray-200">Logout</button>
+            <button class="text-sm px-3 py-1 rounded bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600">Logout</button>
           </form>
         {% endif %}
       </nav>
@@ -32,10 +47,11 @@
   <main class="max-w-7xl mx-auto p-4 flex-grow">
     {% block content %}{% endblock %}
   </main>
-  <footer class="bg-white border-t mt-8">
-    <div class="max-w-7xl mx-auto p-4 text-center text-sm text-gray-500">
+  <footer class="bg-white border-t mt-8 dark:bg-gray-800 dark:border-gray-700">
+    <div class="max-w-7xl mx-auto p-4 text-center text-sm text-gray-500 dark:text-gray-400">
       Copyright 2025 Principal HVAC - Total HVAC Solutions. All Rights Reserved.
     </div>
   </footer>
+  
 </body>
 </html>

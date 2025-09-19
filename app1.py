@@ -133,20 +133,35 @@ def login_required(user: Optional[User]):
 # Template base (written to disk at startup)
 BASE_HTML = """
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="dark">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>{{ title or 'Team Tasks' }}</title>
+  <script>
+    window.tailwind = { config: { darkMode: 'class' } };
+  </script>
   <script src="https://unpkg.com/htmx.org@2.0.2"></script>
   <script src="https://unpkg.com/hyperscript.org@0.9.12"></script>
   <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .dark body { background-color: #0f172a; color: #e5e7eb; }
+    .dark .bg-white { background-color: #1f2937 !important; }
+    .dark .bg-gray-50 { background-color: #0b1220 !important; }
+    /* text colors are controlled by existing classes in light mode; do not override in light */
+    .dark .border, .dark .border-t { border-color: #374151 !important; }
+    .dark .hover\:bg-gray-50:hover { background-color: #111827 !important; }
+    .dark input, .dark select, .dark textarea { background-color: #111827; color: #e5e7eb; border-color: #374151; }
+    /* Make native date input calendar icon white in dark mode (Chromium/WebKit) */
+    .dark input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(1); }
+    .dark a.underline { color: #93c5fd; }
+  </style>
   <link rel="icon" type="image/png" href="/assets/images/favicon-32x32.png" sizes="32x32" />
   <link rel="icon" type="image/png" href="/assets/images/favicon-16x16.png" sizes="16x16" />
   <link rel="icon" href="/assets/images/favicon.ico" sizes="any" />
 </head>
-<body class="min-h-screen flex flex-col bg-gray-50 text-gray-900">
-  <header class="bg-white shadow">
+<body class="min-h-screen flex flex-col bg-gray-50 text-gray-900 dark:bg-gray-900 dark:text-gray-100">
+  <header class="bg-white shadow dark:bg-gray-800">
     <div class="max-w-7xl mx-auto p-4 flex justify-between items-center">
       <a href="/" class="font-semibold">🗂️ Team Tasks</a>
       <nav class="flex items-center gap-4">
@@ -156,7 +171,7 @@ BASE_HTML = """
           <a class="text-sm hover:underline" href="/team">Team</a>
           <a class="text-sm hover:underline" href="/export">Export CSV</a>
           <form method="post" action="/logout">
-            <button class="text-sm px-3 py-1 rounded bg-gray-100 hover:bg-gray-200">Logout</button>
+            <button class="text-sm px-3 py-1 rounded bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600">Logout</button>
           </form>
         {% endif %}
       </nav>
@@ -165,11 +180,12 @@ BASE_HTML = """
   <main class="max-w-7xl mx-auto p-4 flex-grow">
     {% block content %}{% endblock %}
   </main>
-  <footer class="bg-white border-t mt-8">
-    <div class="max-w-7xl mx-auto p-4 text-center text-sm text-gray-500">
+  <footer class="bg-white border-t mt-8 dark:bg-gray-800 dark:border-gray-700">
+    <div class="max-w-7xl mx-auto p-4 text-center text-sm text-gray-500 dark:text-gray-400">
       Copyright 2025 Principal HVAC - Total HVAC Solutions. All Rights Reserved.
     </div>
   </footer>
+  
 </body>
 </html>
 """
@@ -177,7 +193,8 @@ BASE_HTML = """
 LOGIN_HTML = """
 {% extends 'base.html' %}
 {% block content %}
-<div class="max-w-md mx-auto bg-white p-8 rounded-2xl shadow">
+<div class="flex items-center justify-center min-h-[70vh]">
+  <div class="w-full max-w-2xl mx-auto bg-white p-10 rounded-2xl shadow">
   <h1 class="text-xl font-semibold mb-4">Sign in</h1>
   <form method="post" action="/login" class="space-y-3">
     <div>
@@ -192,6 +209,7 @@ LOGIN_HTML = """
   </form>
   <div class="flex justify-between text-xs text-gray-600 mt-6">
     <a class="underline" href="/forgot">Forgot password?</a>
+  </div>
   </div>
 </div>
 {% endblock %}
@@ -248,11 +266,11 @@ DASHBOARD_HTML = """
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
         <div>
           <label class="block text-sm mb-1">From</label>
-          <input type="date" name="from" value="{{from or ''}}" class="w-full h-10 border rounded-lg px-2" />
+          <input type="date" name="from" value="{{from or ''}}" class="w-full h-10 border rounded-lg px-0.5" />
         </div>
         <div>
           <label class="block text-sm mb-1">To</label>
-          <input type="date" name="to" value="{{to or ''}}" class="w-full h-10 border rounded-lg px-2" />
+          <input type="date" name="to" value="{{to or ''}}" class="w-full h-10 border rounded-lg px-0.5" />
         </div>
       </div>
       <button class="w-full h-10 bg-gray-900 text-white rounded-lg">Apply</button>
@@ -262,7 +280,7 @@ DASHBOARD_HTML = """
     <form method="post" action="/import" enctype="multipart/form-data" class="space-y-2">
       <label class="block text-sm">Import CSV</label>
       <input type="file" name="file" accept=".csv" class="w-full text-sm" required />
-      <button class="w-full h-10 bg-gray-100 rounded-lg">Upload</button>
+      <button class="w-full h-10 rounded-lg bg-gray-100 text-black hover:bg-gray-200 dark:bg-black dark:text-white dark:hover:bg-gray-800">Upload</button>
     </form>
   </aside>
 
@@ -282,7 +300,7 @@ DASHBOARD_HTML = """
             <col class="w-[14%]">
             <col class="w-[12%]">
           </colgroup>
-          <thead class="bg-gray-50 text-left text-sm">
+          <thead class="bg-white-50 text-left text-sm">
             <tr>
               <th class="p-3 align-top">Title</th>
               <th class="p-3 align-top">Assignee</th>
