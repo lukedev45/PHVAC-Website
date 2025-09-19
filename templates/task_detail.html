@@ -11,7 +11,7 @@
       <div class="flex items-center gap-2 shrink-0">
         <form method="post" action="/tasks/{{task.id}}/status" class="flex items-center gap-2 shrink-0">
           <select name="status" class="border rounded-lg px-2 h-10">
-            {% for s in ["todo","in_progress","done"] %}
+            {% for s in ["todo","in_progress","issued_for_review","done"] %}
             <option value="{{s}}" {% if task.status==s %}selected{% endif %}>{{s.replace('_',' ').title()}}</option>
             {% endfor %}
           </select>

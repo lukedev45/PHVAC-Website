@@ -18,7 +18,7 @@
         <label class="block text-sm mb-1">Status</label>
         <select name="status" class="w-full h-10 border rounded-lg px-2">
           <option value="">All</option>
-          {% for s in ["todo","in_progress","done"] %}
+          {% for s in ["todo","in_progress","issued_for_review","done"] %}
           <option value="{{s}}" {% if status_val==s %}selected{% endif %}>{{s.replace('_',' ').title()}}</option>
           {% endfor %}
         </select>
