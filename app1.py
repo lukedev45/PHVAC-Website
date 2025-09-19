@@ -60,6 +60,7 @@ class User(SQLModel, table=True):
 class TaskStatus:
     TODO = "todo"
     IN_PROGRESS = "in_progress"
+    ISSUED_FOR_REVIEW = "issued_for_review"
     DONE = "done"
 
 class Task(SQLModel, table=True):
@@ -239,7 +240,7 @@ DASHBOARD_HTML = """
         <label class="block text-sm mb-1">Status</label>
         <select name="status" class="w-full h-10 border rounded-lg px-2">
           <option value="">All</option>
-          {% for s in ["todo","in_progress","done"] %}
+          {% for s in ["todo","in_progress","issued_for_review","done"] %}
           <option value="{{s}}" {% if status_val==s %}selected{% endif %}>{{s.replace('_',' ').title()}}</option>
           {% endfor %}
         </select>
@@ -360,7 +361,7 @@ TASK_DETAIL_HTML = """
       <div class="flex items-center gap-2 shrink-0">
         <form method="post" action="/tasks/{{task.id}}/status" class="flex items-center gap-2 shrink-0">
           <select name="status" class="border rounded-lg px-2 h-10">
-            {% for s in ["todo","in_progress","done"] %}
+            {% for s in ["todo","in_progress","issued_for_review","done"] %}
             <option value="{{s}}" {% if task.status==s %}selected{% endif %}>{{s.replace('_',' ').title()}}</option>
             {% endfor %}
           </select>
@@ -615,7 +616,7 @@ def task_status(task_id: int, status: str = Form(...), db: Session = Depends(get
     t = db.get(Task, task_id)
     if not t:
         raise HTTPException(404)
-    if status not in {TaskStatus.TODO, TaskStatus.IN_PROGRESS, TaskStatus.DONE}:
+    if status not in {TaskStatus.TODO, TaskStatus.IN_PROGRESS, TaskStatus.ISSUED_FOR_REVIEW, TaskStatus.DONE}:
         raise HTTPException(400, "Invalid status")
     t.status = status
     t.updated_at = datetime.utcnow()
@@ -690,7 +691,7 @@ async def import_csv(file: UploadFile = File(...), db: Session = Depends(get_db)
         description = row.get('description') or ''
         due = row.get('due_date') or ''
         status_val = (row.get('status') or TaskStatus.TODO).lower()
-        if status_val not in {TaskStatus.TODO, TaskStatus.IN_PROGRESS, TaskStatus.DONE}:
+        if status_val not in {TaskStatus.TODO, TaskStatus.IN_PROGRESS, TaskStatus.ISSUED_FOR_REVIEW, TaskStatus.DONE}:
             status_val = TaskStatus.TODO
         assignee_username = (row.get('assignee_username') or '').strip().lower()
         assignee = users.get(assignee_username).id if assignee_username in users else None
