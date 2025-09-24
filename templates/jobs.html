@@ -1,0 +1,30 @@
+
+{% extends 'base.html' %}
+{% block content %}
+<div class="flex items-center justify-between mb-4 gap-3 flex-wrap">
+  <h1 class="text-xl font-semibold">Jobs</h1>
+  <form method="get" action="/jobs" class="flex items-center gap-2">
+    <input type="text" name="q" value="{{ q or '' }}" placeholder="Search jobs..." class="h-10 border rounded-lg px-3 w-56" />
+    <button class="h-10 px-3 rounded-lg bg-gray-100 text-black hover:bg-gray-200 dark:bg-black dark:text-white dark:hover:bg-gray-800">Search</button>
+  </form>
+  <a href="/jobs/new" class="px-3 py-2 rounded-lg bg-black text-white">+ New Job</a>
+  </div>
+
+<div class="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+  {% for j in jobs %}
+  <a href="/jobs/{{ j.id }}" class="group block bg-white rounded-2xl shadow overflow-hidden border hover:shadow-md transition">
+    <div class="aspect-[16/9] bg-gray-100 flex items-center justify-center overflow-hidden">
+      {% if j.image_path %}
+        <img src="{{ j.image_path }}" alt="{{ j.title }}" class="w-full h-full object-cover group-hover:scale-[1.02] transition" />
+      {% else %}
+        <div class="text-gray-400 text-sm">No image</div>
+      {% endif %}
+    </div>
+    <div class="p-3">
+      <div class="font-medium truncate">{{ j.title }}</div>
+      <div class="text-xs text-gray-500 mt-1">{{ task_counts.get(j.id, 0) }} tasks</div>
+    </div>
+  </a>
+  {% endfor %}
+</div>
+{% endblock %}

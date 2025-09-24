@@ -71,9 +71,11 @@
           </thead>
           <tbody class="text-sm">
             {% for t in tasks %}
+            {% set days_until_due = (t.due_date - today).days if t.due_date else 999 %}
+            {% set is_urgent = days_until_due <= 3 %}
             <tr class="border-t hover:bg-gray-50 align-top">
               <td class="p-3 align-top">
-                <a class="underline font-medium" href="/tasks/{{t.id}}">{{t.title}}</a>
+                <a class="underline font-medium {% if is_urgent %}text-red-700 font-semibold{% endif %}" href="/tasks/{{t.id}}">{{t.title}}</a>
                 <div class="text-xs text-gray-500 leading-snug mt-1">{{t.description[:120]}}{% if t.description|length>120 %}…{% endif %}</div>
               </td>
               <td class="p-3 align-top">{{ user_by_id.get(t.assignee_id).full_name if t.assignee_id else '-' }}</td>
