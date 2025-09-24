@@ -63,6 +63,12 @@ class TaskStatus:
     ISSUED_FOR_REVIEW = "issued_for_review"
     DONE = "done"
 
+class Job(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    title: str
+    image_path: Optional[str] = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
 class Task(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     title: str
@@ -70,6 +76,7 @@ class Task(SQLModel, table=True):
     due_date: Optional[date] = Field(sa_column=Column(Date, nullable=True))
     status: str = Field(default=TaskStatus.TODO, index=True)
     assignee_id: Optional[int] = Field(default=None, foreign_key="user.id")
+    job_id: Optional[int] = Field(default=None, foreign_key="job.id")
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
@@ -100,9 +107,20 @@ templates = Jinja2Templates(directory=TEMPLATES_DIR)
 app.mount("/static", StaticFiles(directory=TEMPLATES_DIR), name="static")
 app.mount("/assets", StaticFiles(directory=os.path.join(os.path.dirname(__file__), "assets")), name="assets")
 
+os.makedirs(os.path.join(os.path.dirname(__file__), "assets", "images", "jobs"), exist_ok=True)
 
 # DB init
 SQLModel.metadata.create_all(engine)
+
+# Lightweight migration to add job_id to task if it doesn't exist (SQLite-safe)
+with engine.connect() as conn:
+    try:
+        cols = conn.exec_driver_sql("PRAGMA table_info(task)").fetchall()
+        names = [c[1] for c in cols]
+        if "job_id" not in names:
+            conn.exec_driver_sql("ALTER TABLE task ADD COLUMN job_id INTEGER NULL")
+    except Exception:
+        pass
 
 # Utilities
 def get_db():
@@ -167,6 +185,7 @@ BASE_HTML = """
       <nav class="flex items-center gap-4">
         {% if current_user %}
           <a class="text-sm hover:underline" href="/dashboard">Dashboard</a>
+          <a class="text-sm hover:underline" href="/jobs">Jobs</a>
           <a class="text-sm hover:underline" href="/tasks/new">New Task</a>
           <a class="text-sm hover:underline" href="/team">Team</a>
           <a class="text-sm hover:underline" href="/export">Export CSV</a>
@@ -311,9 +330,11 @@ DASHBOARD_HTML = """
           </thead>
           <tbody class="text-sm">
             {% for t in tasks %}
+            {% set days_until_due = (t.due_date - today).days if t.due_date else 999 %}
+            {% set is_urgent = days_until_due <= 3 %}
             <tr class="border-t hover:bg-gray-50 align-top">
               <td class="p-3 align-top">
-                <a class="underline font-medium" href="/tasks/{{t.id}}">{{t.title}}</a>
+                <a class="underline font-medium {% if is_urgent %}text-red-700 font-semibold{% endif %}" href="/tasks/{{t.id}}">{{t.title}}</a>
                 <div class="text-xs text-gray-500 leading-snug mt-1">{{t.description[:120]}}{% if t.description|length>120 %}…{% endif %}</div>
               </td>
               <td class="p-3 align-top">{{ user_by_id.get(t.assignee_id).full_name if t.assignee_id else '-' }}</td>
@@ -360,6 +381,15 @@ TASK_NEW_HTML = """
         </select>
       </div>
     </div>
+    <div>
+      <label class="block text-sm mb-1">Job</label>
+      <select name="job_id" class="w-full h-10 border rounded-lg px-3">
+        <option value="">No Job</option>
+        {% for j in jobs %}
+          <option value="{{ j.id }}">{{ j.title }}</option>
+        {% endfor %}
+      </select>
+    </div>
     <button class="h-10 bg-black text-white rounded-lg">Create</button>
   </form>
 </div>
@@ -385,6 +415,17 @@ TASK_DETAIL_HTML = """
           </select>
           <button class="px-3 h-10 rounded-lg bg-gray-900 text-white">Update</button>
         </form>
+        {% if current_user and current_user.role == 'manager' %}
+        <form method="post" action="/tasks/{{task.id}}/assign" class="flex items-center gap-2 shrink-0">
+          <select name="assignee_id" class="border rounded-lg px-2 h-10">
+            <option value="">Unassigned</option>
+            {% for u in users_map.values() %}
+            <option value="{{u.id}}" {% if task.assignee_id == u.id %}selected{% endif %}>{{u.full_name}}</option>
+            {% endfor %}
+          </select>
+          <button class="px-3 h-10 rounded-lg bg-blue-600 text-white">Assign</button>
+        </form>
+        {% endif %}
         {% if task.status == 'done' %}
         <form method="post" action="/tasks/{{task.id}}/delete" onsubmit="return confirm('Delete this task? This cannot be undone.')" class="shrink-0">
           <button class="px-3 h-10 rounded-lg bg-red-600 text-white">Delete</button>
@@ -447,7 +488,7 @@ TEAM_HTML = """
 
   <table class="w-full text-left">
     <thead class="bg-gray-50 text-sm">
-      <tr><th class="p-2">Name</th><th class="p-2">Username</th><th class="p-2">Role</th></tr>
+      <tr><th class="p-2">Name</th><th class="p-2">Username</th><th class="p-2">Role</th>{% if current_user and current_user.role == 'manager' %}<th class="p-2">Actions</th>{% endif %}</tr>
     </thead>
     <tbody>
       {% for u in users %}
@@ -455,6 +496,17 @@ TEAM_HTML = """
         <td class="p-2">{{u.full_name}}</td>
         <td class="p-2">{{u.username}}</td>
         <td class="p-2">{{u.role.title()}}</td>
+        {% if current_user and current_user.role == 'manager' %}
+        <td class="p-2">
+          {% if u.id != current_user.id %}
+          <form method="post" action="/team/{{ u.id }}/delete" onsubmit="return confirm('Delete {{ u.full_name }}? This will also delete all their tasks and notes. This cannot be undone.')" class="inline">
+            <button class="px-2 py-1 text-xs rounded bg-red-600 text-white">Delete</button>
+          </form>
+          {% else %}
+          <span class="text-xs text-gray-400">You</span>
+          {% endif %}
+        </td>
+        {% endif %}
       </tr>
       {% endfor %}
     </tbody>
@@ -509,6 +561,122 @@ RESET_HTML = """
 {% endblock %}
 """
 
+JOBS_HTML = """
+{% extends 'base.html' %}
+{% block content %}
+<div class="flex items-center justify-between mb-4 gap-3 flex-wrap">
+  <h1 class="text-xl font-semibold">Jobs</h1>
+  <form method="get" action="/jobs" class="flex items-center gap-2">
+    <input type="text" name="q" value="{{ q or '' }}" placeholder="Search jobs..." class="h-10 border rounded-lg px-3 w-56" />
+    <button class="h-10 px-3 rounded-lg bg-gray-100 text-black hover:bg-gray-200 dark:bg-black dark:text-white dark:hover:bg-gray-800">Search</button>
+  </form>
+  <a href="/jobs/new" class="px-3 py-2 rounded-lg bg-black text-white">+ New Job</a>
+  </div>
+
+<div class="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+  {% for j in jobs %}
+  <a href="/jobs/{{ j.id }}" class="group block bg-white rounded-2xl shadow overflow-hidden border hover:shadow-md transition">
+    <div class="aspect-[16/9] bg-gray-100 flex items-center justify-center overflow-hidden">
+      {% if j.image_path %}
+        <img src="{{ j.image_path }}" alt="{{ j.title }}" class="w-full h-full object-cover group-hover:scale-[1.02] transition" />
+      {% else %}
+        <div class="text-gray-400 text-sm">No image</div>
+      {% endif %}
+    </div>
+    <div class="p-3">
+      <div class="font-medium truncate">{{ j.title }}</div>
+      <div class="text-xs text-gray-500 mt-1">{{ task_counts.get(j.id, 0) }} tasks</div>
+    </div>
+  </a>
+  {% endfor %}
+</div>
+{% endblock %}
+"""
+
+JOB_NEW_HTML = """
+{% extends 'base.html' %}
+{% block content %}
+<div class="max-w-xl mx-auto bg-white p-8 rounded-2xl shadow">
+  <h1 class="text-xl font-semibold mb-4">New Job</h1>
+  <form method="post" action="/jobs/new" enctype="multipart/form-data" class="grid gap-3">
+    <div>
+      <label class="block text-sm mb-1">Title</label>
+      <input name="title" class="w-full h-10 border rounded-lg px-3" required />
+    </div>
+    <div>
+      <label class="block text-sm mb-1">Image (optional)</label>
+      <input type="file" name="image" accept=".png,.jpg,.jpeg,.webp" class="w-full" />
+      <p class="text-xs text-gray-500 mt-1">Shown on the job card.</p>
+    </div>
+    <button class="h-10 bg-black text-white rounded-lg">Create Job</button>
+  </form>
+</div>
+{% endblock %}
+"""
+
+JOB_DETAIL_HTML = """
+{% extends 'base.html' %}
+{% block content %}
+<div class="flex items-center justify-between mb-4">
+  <div class="flex items-center gap-3">
+    <div class="w-16 h-16 rounded-lg overflow-hidden bg-gray-100 flex items-center justify-center">
+      {% if job.image_path %}
+        <img src="{{ job.image_path }}" alt="{{ job.title }}" class="w-full h-full object-cover" />
+      {% else %}
+        <div class="text-xs text-gray-400">No image</div>
+      {% endif %}
+    </div>
+    <h1 class="text-xl font-semibold">{{ job.title }}</h1>
+  </div>
+  <div class="flex items-center gap-2">
+    <a href="/tasks/new" class="px-3 py-2 rounded-lg bg-black text-white">+ New Task</a>
+    {% if current_user and current_user.role == 'manager' %}
+    <form method="post" action="/jobs/{{ job.id }}/delete" onsubmit="return confirm('Delete this job and all its tasks? This cannot be undone.')" class="inline">
+      <button class="px-3 py-2 rounded-lg bg-red-600 text-white">Delete Job</button>
+    </form>
+    {% endif %}
+  </div>
+</div>
+
+<div class="bg-white rounded-2xl shadow overflow-hidden">
+  <div class="overflow-x-auto">
+    <table class="w-full table-fixed min-w-[700px]">
+      <colgroup>
+        <col class="w-[40%]">
+        <col class="w-[18%]">
+        <col class="w-[16%]">
+        <col class="w-[14%]">
+        <col class="w-[12%]">
+      </colgroup>
+      <thead class="bg-white-50 text-left text-sm">
+        <tr>
+          <th class="p-3 align-top">Title</th>
+          <th class="p-3 align-top">Assignee</th>
+          <th class="p-3 align-top">Due</th>
+          <th class="p-3 align-top">Status</th>
+          <th class="p-3 align-top">Updated</th>
+        </tr>
+      </thead>
+      <tbody class="text-sm">
+        {% for t in tasks %}
+        <tr class="border-t hover:bg-gray-50 align-top">
+          <td class="p-3 align-top">
+            <a class="underline font-medium" href="/tasks/{{t.id}}">{{t.title}}</a>
+            <div class="text-xs text-gray-500 leading-snug mt-1">{{t.description[:120]}}{% if t.description|length>120 %}…{% endif %}</div>
+          </td>
+          <td class="p-3 align-top">{{ user_by_id.get(t.assignee_id).full_name if t.assignee_id else '-' }}</td>
+          <td class="p-3 align-top">{{ t.due_date or '-' }}</td>
+          <td class="p-3 align-top">{{ t.status.replace('_',' ').title() }}</td>
+          <td class="p-3 align-top">{{ t.updated_at.strftime('%Y-%m-%d %H:%M') }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+"""
+
 # Write templates to disk on startup (so Jinja2 can load them)
 with open(os.path.join(TEMPLATES_DIR, "base.html"), "w", encoding="utf-8") as f:
     f.write(BASE_HTML)
@@ -528,6 +696,13 @@ with open(os.path.join(TEMPLATES_DIR, "forgot.html"), "w", encoding="utf-8") as 
     f.write(FORGOT_HTML)
 with open(os.path.join(TEMPLATES_DIR, "reset.html"), "w", encoding="utf-8") as f:
     f.write(RESET_HTML)
+
+with open(os.path.join(TEMPLATES_DIR, "jobs.html"), "w", encoding="utf-8") as f:
+    f.write(JOBS_HTML)
+with open(os.path.join(TEMPLATES_DIR, "job_new.html"), "w", encoding="utf-8") as f:
+    f.write(JOB_NEW_HTML)
+with open(os.path.join(TEMPLATES_DIR, "job_detail.html"), "w", encoding="utf-8") as f:
+    f.write(JOB_DETAIL_HTML)
 
 
 # Routes
@@ -595,23 +770,28 @@ def dashboard(request: Request, assignee_id: Optional[int] = None, status: Optio
             stmt = stmt.where(Task.due_date <= tdate)
         except:
             pass
-    stmt = stmt.order_by(Task.due_date.is_(None), Task.due_date, Task.updated_at.desc())
+    # Sort by due date (closest first), then by updated_at for tasks without due dates
+    stmt = stmt.order_by(Task.due_date.is_(None), Task.due_date.asc(), Task.updated_at.desc())
     tasks = db.exec(stmt).all()
     user_by_id = {u.id: u for u in users}
-    return templates.TemplateResponse("dashboard.html", {"request": request, "title": "Dashboard", "current_user": user, "users": users, "tasks": tasks, "user_by_id": user_by_id, "assignee_id": assignee_id, "status_val": status, "from": from_, "to": to})
+    
+    today = date.today()
+    return templates.TemplateResponse("dashboard.html", {"request": request, "title": "Dashboard", "current_user": user, "users": users, "tasks": tasks, "user_by_id": user_by_id, "assignee_id": assignee_id, "status_val": status, "from": from_, "to": to, "today": today})
 
 @app.get("/tasks/new", response_class=HTMLResponse)
 def task_new_get(request: Request, db: Session = Depends(get_db), user: Optional[User] = Depends(get_current_user)):
     login_required(user)
     users = db.exec(select(User)).all()
-    return templates.TemplateResponse("task_new.html", {"request": request, "title": "New Task", "current_user": user, "users": users})
+    jobs = db.exec(select(Job).order_by(Job.created_at.desc())).all()
+    return templates.TemplateResponse("task_new.html", {"request": request, "title": "New Task", "current_user": user, "users": users, "jobs": jobs})
 
 @app.post("/tasks/new")
-def task_new_post(request: Request, title: str = Form(...), description: str = Form(""), due_date: Optional[str] = Form(None), assignee_id: Optional[str] = Form(None), db: Session = Depends(get_db), user: Optional[User] = Depends(get_current_user)):
+def task_new_post(request: Request, title: str = Form(...), description: str = Form(""), due_date: Optional[str] = Form(None), assignee_id: Optional[str] = Form(None), job_id: Optional[str] = Form(None), db: Session = Depends(get_db), user: Optional[User] = Depends(get_current_user)):
     login_required(user)
     due = datetime.strptime(due_date, "%Y-%m-%d").date() if due_date else None
     assignee = int(assignee_id) if assignee_id else None
-    t = Task(title=title, description=description, due_date=due, assignee_id=assignee)
+    job = int(job_id) if job_id else None
+    t = Task(title=title, description=description, due_date=due, assignee_id=assignee, job_id=job)
     db.add(t)
     db.commit()
     return RedirectResponse(f"/tasks/{t.id}", status_code=302)
@@ -639,6 +819,20 @@ def task_status(task_id: int, status: str = Form(...), db: Session = Depends(get
     t.status = status
     t.updated_at = datetime.utcnow()
     db.add(t)
+    db.commit()
+    return RedirectResponse(f"/tasks/{task_id}", status_code=302)
+
+@app.post("/tasks/{task_id}/assign")
+def task_assign_update(request: Request, task_id: int, assignee_id: Optional[str] = Form(None), db: Session = Depends(get_db), user: Optional[User] = Depends(get_current_user)):
+    login_required(user)
+    if user.role != "manager":
+        raise HTTPException(403, "Only managers can change task assignments")
+    t = db.get(Task, task_id)
+    if not t:
+        raise HTTPException(404, "Task not found")
+    assignee = int(assignee_id) if assignee_id else None
+    t.assignee_id = assignee
+    t.updated_at = datetime.utcnow()
     db.commit()
     return RedirectResponse(f"/tasks/{task_id}", status_code=302)
 
@@ -695,6 +889,32 @@ def team_new(full_name: str = Form(...), username: str = Form(...), password: st
     db.commit()
     return RedirectResponse("/team", status_code=302)
 
+@app.post("/team/{user_id}/delete")
+def team_delete(request: Request, user_id: int, db: Session = Depends(get_db), user: Optional[User] = Depends(get_current_user)):
+    login_required(user)
+    if user.role != "manager":
+        raise HTTPException(403, "Only managers can delete users")
+    target_user = db.get(User, user_id)
+    if not target_user:
+        raise HTTPException(404, "User not found")
+    if target_user.id == user.id:
+        raise HTTPException(400, "Cannot delete yourself")
+    # Delete all tasks assigned to this user
+    tasks = db.exec(select(Task).where(Task.assignee_id == user_id)).all()
+    for t in tasks:
+        # Delete notes for each task
+        notes = db.exec(select(Note).where(Note.task_id == t.id)).all()
+        for n in notes:
+            db.delete(n)
+        db.delete(t)
+    # Delete all notes authored by this user
+    notes = db.exec(select(Note).where(Note.author_id == user_id)).all()
+    for n in notes:
+        db.delete(n)
+    db.delete(target_user)
+    db.commit()
+    return RedirectResponse("/team", status_code=302)
+
 @app.post("/import")
 async def import_csv(file: UploadFile = File(...), db: Session = Depends(get_db), user: Optional[User] = Depends(get_current_user)):
     login_required(user)
@@ -737,6 +957,104 @@ def export_csv(db: Session = Depends(get_db), user: Optional[User] = Depends(get
             row = [t.title.replace(',', ' '), t.description.replace('\n',' ').replace(',', ' '), due_str, t.status, assignee_username]
             yield ','.join(row) + "\n"
     return StreamingResponse(gen(), media_type='text/csv', headers={"Content-Disposition": "attachment; filename=tasks.csv"})
+
+@app.get("/jobs", response_class=HTMLResponse)
+def jobs_list(request: Request, q: Optional[str] = None, db: Session = Depends(get_db), user: Optional[User] = Depends(get_current_user)):
+    login_required(user)
+    stmt = select(Job).order_by(Job.created_at.desc())
+    if q:
+        like = f"%{q.strip()}%"
+        # SQLModel select with where on title using SQLAlchemy .like
+        from sqlalchemy import or_
+        stmt = stmt.where(Job.title.like(like))
+    jobs = db.exec(stmt).all()
+    task_counts = {}
+    for j in jobs:
+        count = db.exec(select(Task).where(Task.job_id == j.id)).all()
+        task_counts[j.id] = len(count)
+    return templates.TemplateResponse("jobs.html", {"request": request, "title": "Jobs", "current_user": user, "jobs": jobs, "task_counts": task_counts, "q": q or ""})
+
+@app.get("/jobs/new", response_class=HTMLResponse)
+def jobs_new_get(request: Request, user: Optional[User] = Depends(get_current_user)):
+    login_required(user)
+    return templates.TemplateResponse("job_new.html", {"request": request, "title": "New Job", "current_user": user})
+
+@app.post("/jobs/new")
+async def jobs_new_post(request: Request, title: str = Form(...), image: UploadFile = File(None), db: Session = Depends(get_db), user: Optional[User] = Depends(get_current_user)):
+    login_required(user)
+    image_path = None
+    if image and image.filename:
+        ext = os.path.splitext(image.filename)[1].lower()
+        safe_ext = ext if ext in [".jpg", ".jpeg", ".png", ".webp"] else ".jpg"
+        fname = f"{uuid4().hex}{safe_ext}"
+        folder = os.path.join(os.path.dirname(__file__), "assets", "images", "jobs")
+        os.makedirs(folder, exist_ok=True)
+        full_path = os.path.join(folder, fname)
+        data = await image.read()
+        with open(full_path, "wb") as f:
+            f.write(data)
+        image_path = f"/assets/images/jobs/{fname}"
+    j = Job(title=title, image_path=image_path)
+    db.add(j)
+    db.commit()
+    return RedirectResponse("/jobs", status_code=302)
+
+@app.get("/jobs/{job_id}", response_class=HTMLResponse)
+def job_detail(request: Request, job_id: int, db: Session = Depends(get_db), user: Optional[User] = Depends(get_current_user)):
+    login_required(user)
+    j = db.get(Job, job_id)
+    if not j:
+        raise HTTPException(404, "Job not found")
+    users = db.exec(select(User)).all()
+    user_by_id = {u.id: u for u in users}
+    tasks = db.exec(select(Task).where(Task.job_id == job_id).order_by(Task.due_date.is_(None), Task.due_date, Task.updated_at.desc())).all()
+    return templates.TemplateResponse("job_detail.html", {"request": request, "title": j.title, "current_user": user, "job": j, "tasks": tasks, "user_by_id": user_by_id})
+
+@app.post("/jobs/{job_id}/delete")
+def job_delete(request: Request, job_id: int, db: Session = Depends(get_db), user: Optional[User] = Depends(get_current_user)):
+    login_required(user)
+    if user.role != "manager":
+        raise HTTPException(403, "Only managers can delete jobs")
+    j = db.get(Job, job_id)
+    if not j:
+        raise HTTPException(404, "Job not found")
+    # Delete all tasks in this job first
+    tasks = db.exec(select(Task).where(Task.job_id == job_id)).all()
+    for t in tasks:
+        # Delete notes for each task
+        notes = db.exec(select(Note).where(Note.task_id == t.id)).all()
+        for n in notes:
+            db.delete(n)
+        db.delete(t)
+    db.delete(j)
+    db.commit()
+    return RedirectResponse("/jobs", status_code=302)
+
+@app.post("/jobs/{job_id}/image")
+def job_image_update(request: Request, job_id: int, image: UploadFile = File(...), db: Session = Depends(get_db), user: Optional[User] = Depends(get_current_user)):
+    login_required(user)
+    if user.role != "manager":
+        raise HTTPException(403, "Only managers can update job images")
+    j = db.get(Job, job_id)
+    if not j:
+        raise HTTPException(404, "Job not found")
+    
+    if not image.content_type or not image.content_type.startswith("image/"):
+        raise HTTPException(400, "File must be an image")
+    
+    # Save the image
+    image_path = f"assets/images/jobs/job_{job_id}_{int(time.time())}.{image.filename.split('.')[-1]}"
+    full_path = os.path.join(os.path.dirname(__file__), image_path)
+    
+    with open(full_path, "wb") as f:
+        content = image.file.read()
+        f.write(content)
+    
+    # Update job with new image path
+    j.image_path = f"/{image_path}"
+    db.commit()
+    
+    return RedirectResponse(f"/jobs/{job_id}", status_code=302)
 
 
 # Forgot password flow
