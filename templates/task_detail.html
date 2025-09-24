@@ -17,6 +17,17 @@
           </select>
           <button class="px-3 h-10 rounded-lg bg-gray-900 text-white">Update</button>
         </form>
+        {% if current_user and current_user.role == 'manager' %}
+        <form method="post" action="/tasks/{{task.id}}/assign" class="flex items-center gap-2 shrink-0">
+          <select name="assignee_id" class="border rounded-lg px-2 h-10">
+            <option value="">Unassigned</option>
+            {% for u in users_map.values() %}
+            <option value="{{u.id}}" {% if task.assignee_id == u.id %}selected{% endif %}>{{u.full_name}}</option>
+            {% endfor %}
+          </select>
+          <button class="px-3 h-10 rounded-lg bg-blue-600 text-white">Assign</button>
+        </form>
+        {% endif %}
         {% if task.status == 'done' %}
         <form method="post" action="/tasks/{{task.id}}/delete" onsubmit="return confirm('Delete this task? This cannot be undone.')" class="shrink-0">
           <button class="px-3 h-10 rounded-lg bg-red-600 text-white">Delete</button>
