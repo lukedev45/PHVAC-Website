@@ -33,7 +33,7 @@ end
 # Unset irrelevant variables.
 deactivate nondestructive
 
-set -gx VIRTUAL_ENV /home/luke/Desktop/PHVAC-Website/venv
+set -gx VIRTUAL_ENV /home/luke/PycharmProjects/PHVAC-Website/venv
 
 set -gx _OLD_VIRTUAL_PATH $PATH
 set -gx PATH "$VIRTUAL_ENV/"bin $PATH
