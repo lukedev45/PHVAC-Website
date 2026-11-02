@@ -29,6 +29,8 @@ How to run:
 from __future__ import annotations
 import os
 import csv
+import hashlib
+import secrets
 from datetime import datetime, date, timedelta
 from typing import Optional, List
 from uuid import uuid4
@@ -129,6 +131,10 @@ def hash_password(password: str) -> str:
 
 def verify_password(password: str, password_hash: str) -> bool:
     return pwd_context.verify(password, password_hash)
+
+def hash_token(token: str) -> str:
+    # Reset tokens are long random values, so a fast unsalted hash is enough (unlike passwords)
+    return hashlib.sha256(token.encode()).hexdigest()
 
 def normalize_username(u: str) -> str:
     return (u or "").strip().lower()
@@ -514,8 +520,9 @@ def team_reset_link(request: Request, user_id: int, db: Session = Depends(get_db
     target_user = db.get(User, user_id)
     if not target_user:
         raise HTTPException(404, "User not found")
-    token = uuid4().hex
-    pr = PasswordReset(user_id=target_user.id, token=token)
+    token = secrets.token_urlsafe(32)
+    # Store only the hash, so someone who can read the database can't use it to reset passwords
+    pr = PasswordReset(user_id=target_user.id, token=hash_token(token))
     db.add(pr)
     db.commit()
     host = request.headers.get("host", "localhost:8000")
@@ -526,7 +533,7 @@ def team_reset_link(request: Request, user_id: int, db: Session = Depends(get_db
 
 @app.get("/reset/{token}", response_class=HTMLResponse)
 def reset_get(request: Request, token: str, db: Session = Depends(get_db)):
-    pr = db.exec(select(PasswordReset).where(PasswordReset.token == token)).first()
+    pr = db.exec(select(PasswordReset).where(PasswordReset.token == hash_token(token))).first()
     if not pr or pr.used or pr.expires_at < datetime.utcnow():
         return templates.TemplateResponse("reset.html", {"request": request, "title": "Reset password", "current_user": None, "error": "Invalid or expired reset link."})
     return templates.TemplateResponse("reset.html", {"request": request, "title": "Reset password", "current_user": None, "error": None})
@@ -535,7 +542,7 @@ def reset_get(request: Request, token: str, db: Session = Depends(get_db)):
 def reset_post(request: Request, token: str, password: str = Form(...), password2: str = Form(...), db: Session = Depends(get_db)):
     if password != password2:
         return templates.TemplateResponse("reset.html", {"request": request, "title": "Reset password", "current_user": None, "error": "Passwords do not match."})
-    pr = db.exec(select(PasswordReset).where(PasswordReset.token == token)).first()
+    pr = db.exec(select(PasswordReset).where(PasswordReset.token == hash_token(token))).first()
     if not pr or pr.used or pr.expires_at < datetime.utcnow():
         return templates.TemplateResponse("reset.html", {"request": request, "title": "Reset password", "current_user": None, "error": "Invalid or expired reset link."})
     u = db.get(User, pr.user_id)
