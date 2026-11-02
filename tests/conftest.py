@@ -16,6 +16,7 @@ from sqlmodel import Session, SQLModel
 _TMP_DIR = tempfile.mkdtemp(prefix="phvac-tests-")
 TEST_DB_PATH = os.path.join(_TMP_DIR, "test.db")
 os.environ["DB_URL"] = f"sqlite:///{TEST_DB_PATH}"  # deliberately overrides any real DB_URL
+os.environ["APP_SECRET"] = "test-secret-only-used-by-the-tests"
 
 import app as app_module  # noqa: E402  (must be imported after DB_URL is set)
 

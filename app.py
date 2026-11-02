@@ -44,7 +44,13 @@ from passlib.context import CryptContext
 from sqlmodel import Field, SQLModel, Session, create_engine, select, Column, Date
 
 # Config
-SECRET_KEY = os.environ.get("APP_SECRET", "replace-me-with-a-long-random-secret")
+SECRET_KEY = os.environ.get("APP_SECRET")
+if not SECRET_KEY:
+    raise RuntimeError(
+        "APP_SECRET is not set. It signs the session cookies, so it must be a long random value. Generate one with:\n"
+        "    python -c \"import secrets; print(secrets.token_urlsafe(64))\"\n"
+        "and set it in the environment before starting the app (e.g. export APP_SECRET=...)."
+    )
 DB_URL = os.environ.get("DB_URL", "sqlite:///./tasks.db")
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
