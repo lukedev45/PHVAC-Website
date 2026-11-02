@@ -15,14 +15,17 @@ Features:
 - CSV import/export (so you can move from Excel by saving as CSV)
 - Audit: status/assignee/notes timestamps tracked
 
-How to run:
-1) Install deps:  
-   pip install fastapi uvicorn sqlmodel jinja2 passlib[bcrypt] python-multipart itsdangerous
+How to run (more detail in README.md):
+1) Install deps (Python 3.12):
+   pip install -r requirements.txt
 
-2) Start server:  
+2) Set APP_SECRET, which signs the session cookies (the app won't start without it):
+   export APP_SECRET="$(python -c 'import secrets; print(secrets.token_urlsafe(64))')"
+
+3) Start server (add SESSION_HTTPS_ONLY=0 when serving over plain HTTP):
    uvicorn app:app --reload --host 0.0.0.0 --port 8000
 
-3) First user: When you start, no users exist. Go to /bootstrap to create the first manager account.
+4) First user: When you start, no users exist. Go to /bootstrap to create the first manager account.
 
 """
 
