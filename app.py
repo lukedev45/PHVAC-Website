@@ -104,7 +104,6 @@ os.makedirs(TEMPLATES_DIR, exist_ok=True)
 templates = Jinja2Templates(directory=TEMPLATES_DIR)
 
 # Serve static files
-app.mount("/static", StaticFiles(directory=TEMPLATES_DIR), name="static")
 app.mount("/assets", StaticFiles(directory=os.path.join(os.path.dirname(__file__), "assets")), name="assets")
 
 os.makedirs(os.path.join(os.path.dirname(__file__), "assets", "images", "jobs"), exist_ok=True)
