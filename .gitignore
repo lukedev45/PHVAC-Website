@@ -1,1 +1,14 @@
-.venv
+# Virtual environments
+venv/
+.venv/
+
+# Python bytecode
+__pycache__/
+*.pyc
+
+# Local databases and secrets
+*.db
+.env
+
+# Job images uploaded at runtime (the favicons in assets/images/ stay tracked)
+assets/images/jobs/
