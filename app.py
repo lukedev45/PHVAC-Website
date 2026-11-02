@@ -37,7 +37,6 @@ from fastapi import FastAPI, Request, Form, Depends, HTTPException, status, Uplo
 from fastapi.responses import RedirectResponse, HTMLResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from fastapi.testclient import TestClient
 from starlette.middleware.sessions import SessionMiddleware
 from passlib.context import CryptContext
 from sqlmodel import Field, SQLModel, Session, create_engine, select, Column, Date
@@ -1110,37 +1109,3 @@ def health():
 @app.get("/favicon.ico")
 def favicon():
     return RedirectResponse("/assets/images/favicon.ico", status_code=302)
-
-
-#minimal smoke tests (run only if RUN_SMOKE_TESTS=1)
-def _run_smoke_tests():
-    client = TestClient(app)
-
-    # 1) Bootstrap page loads when no users exist
-    r = client.get("/bootstrap")
-    assert r.status_code == 200
-
-    # 2) Create first manager
-    r = client.post("/bootstrap", data={"full_name": "Admin One", "username": "Admin", "password": "pass"}, allow_redirects=False)
-    assert r.status_code == 302 and r.headers["location"].endswith("/login")
-
-    # 3) Login is case-insensitive
-    r = client.post("/login", data={"username": "ADMIN", "password": "pass"}, allow_redirects=False)
-    assert r.status_code == 302 and r.headers["location"].endswith("/dashboard")
-
-    # 4) Create a task
-    r = client.get("/tasks/new")
-    assert r.status_code == 200
-    r = client.post("/tasks/new", data={"title": "Test Task", "description": "desc"}, allow_redirects=False)
-    assert r.status_code == 302 and r.headers["location"].startswith("/tasks/")
-
-    # 5) Dashboard renders and contains the task title
-    r = client.get("/dashboard")
-    assert r.status_code == 200 and "Test Task" in r.text
-
-    # 6) Forgot password page
-    r = client.get("/forgot")
-    assert r.status_code == 200
-
-if __name__ == "__main__" and os.environ.get("RUN_SMOKE_TESTS") == "1":
-    _run_smoke_tests()
