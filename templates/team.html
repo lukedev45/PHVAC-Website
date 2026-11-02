@@ -29,6 +29,14 @@
     {% endif %}
   </div>
 
+  {% if reset_url %}
+  <div class="mb-4 p-3 bg-gray-50 border rounded text-sm">
+    <p class="font-medium">Reset link for {{ reset_user.full_name }} (valid 24h):</p>
+    <a class="underline break-all" href="{{ reset_url }}">{{ reset_url }}</a>
+    <p class="text-xs text-gray-500 mt-2">Copy this link and send it securely to the user.</p>
+  </div>
+  {% endif %}
+
   <table class="w-full text-left">
     <thead class="bg-gray-50 text-sm">
       <tr><th class="p-2">Name</th><th class="p-2">Username</th><th class="p-2">Role</th>{% if current_user and current_user.role == 'manager' %}<th class="p-2">Actions</th>{% endif %}</tr>
@@ -41,6 +49,9 @@
         <td class="p-2">{{u.role.title()}}</td>
         {% if current_user and current_user.role == 'manager' %}
         <td class="p-2">
+          <form method="post" action="/team/{{ u.id }}/reset-link" class="inline">
+            <button class="px-2 py-1 text-xs rounded bg-gray-900 text-white">Reset link</button>
+          </form>
           {% if u.id != current_user.id %}
           <form method="post" action="/team/{{ u.id }}/delete" onsubmit="return confirm('Delete {{ u.full_name }}? This will also delete all their tasks and notes. This cannot be undone.')" class="inline">
             <button class="px-2 py-1 text-xs rounded bg-red-600 text-white">Delete</button>

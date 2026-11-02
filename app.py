@@ -144,6 +144,11 @@ def login_required(user: Optional[User]):
     if not user:
         raise HTTPException(status_code=status.HTTP_302_FOUND, detail="Redirect", headers={"Location": "/login"})
 
+def manager_required(user: Optional[User]):
+    login_required(user)
+    if user.role != "manager":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only managers can do this")
+
 
 # Routes
 @app.get("/", response_class=HTMLResponse)
@@ -500,23 +505,24 @@ def job_image_update(request: Request, job_id: int, image: UploadFile = File(...
 # Forgot password flow
 @app.get("/forgot", response_class=HTMLResponse)
 def forgot_get(request: Request, user: Optional[User] = Depends(get_current_user)):
-    return templates.TemplateResponse("forgot.html", {"request": request, "title": "Forgot password", "current_user": user, "reset_url": None})
+    return templates.TemplateResponse("forgot.html", {"request": request, "title": "Forgot password", "current_user": user})
 
-@app.post("/forgot", response_class=HTMLResponse)
-def forgot_post(request: Request, username: str = Form(...), db: Session = Depends(get_db)):
-    username_norm = normalize_username(username)
-    u = db.exec(select(User).where(User.username == username_norm)).first()
-    reset_url = None
-    if u:
-        token = uuid4().hex
-        pr = PasswordReset(user_id=u.id, token=token)
-        db.add(pr)
-        db.commit()
-        host = request.headers.get("host", "localhost:8000")
-        scheme = "https" if request.url.scheme == "https" else "http"
-        reset_url = f"{scheme}://{host}/reset/{token}"
-    # Always render success (don’t reveal if username exists)
-    return templates.TemplateResponse("forgot.html", {"request": request, "title": "Forgot password", "current_user": None, "reset_url": reset_url})
+@app.post("/team/{user_id}/reset-link", response_class=HTMLResponse)
+def team_reset_link(request: Request, user_id: int, db: Session = Depends(get_db), user: Optional[User] = Depends(get_current_user)):
+    # Only a manager can create a reset link; they pass it on to the team member themselves
+    manager_required(user)
+    target_user = db.get(User, user_id)
+    if not target_user:
+        raise HTTPException(404, "User not found")
+    token = uuid4().hex
+    pr = PasswordReset(user_id=target_user.id, token=token)
+    db.add(pr)
+    db.commit()
+    host = request.headers.get("host", "localhost:8000")
+    scheme = "https" if request.url.scheme == "https" else "http"
+    reset_url = f"{scheme}://{host}/reset/{token}"
+    users = db.exec(select(User)).all()
+    return templates.TemplateResponse("team.html", {"request": request, "title": "Team", "current_user": user, "users": users, "reset_url": reset_url, "reset_user": target_user})
 
 @app.get("/reset/{token}", response_class=HTMLResponse)
 def reset_get(request: Request, token: str, db: Session = Depends(get_db)):

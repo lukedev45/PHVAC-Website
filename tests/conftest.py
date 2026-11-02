@@ -11,7 +11,7 @@ import tempfile
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlmodel import SQLModel
+from sqlmodel import Session, SQLModel
 
 _TMP_DIR = tempfile.mkdtemp(prefix="phvac-tests-")
 TEST_DB_PATH = os.path.join(_TMP_DIR, "test.db")
@@ -38,3 +38,26 @@ def remove_temp_dir():
 @pytest.fixture
 def client():
     return TestClient(app_module.app)
+
+
+@pytest.fixture
+def make_user():
+    """Create a user directly in the database and return their id."""
+    def _make_user(username, role="member", password="pw"):
+        with Session(app_module.engine) as db:
+            u = app_module.User(username=username, full_name=username.title(), role=role, password_hash=app_module.hash_password(password))
+            db.add(u)
+            db.commit()
+            return u.id
+    return _make_user
+
+
+@pytest.fixture
+def login():
+    """Return a new client logged in as the given user (fails the test if the login is rejected)."""
+    def _login(username, password="pw"):
+        c = TestClient(app_module.app)
+        r = c.post("/login", data={"username": username, "password": password}, follow_redirects=False)
+        assert r.headers["location"].endswith("/dashboard"), f"login failed for {username}"
+        return c
+    return _login
