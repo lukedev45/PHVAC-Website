@@ -52,6 +52,8 @@ if not SECRET_KEY:
         "and set it in the environment before starting the app (e.g. export APP_SECRET=...)."
     )
 DB_URL = os.environ.get("DB_URL", "sqlite:///./tasks.db")
+# Session cookies are only sent over HTTPS, unless SESSION_HTTPS_ONLY=0 (for local development over plain HTTP)
+SESSION_HTTPS_ONLY = os.environ.get("SESSION_HTTPS_ONLY", "1") != "0"
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 engine = create_engine(DB_URL, connect_args={"check_same_thread": False} if DB_URL.startswith("sqlite") else {})
@@ -104,7 +106,7 @@ class PasswordReset(SQLModel, table=True):
 
 # App + Templates
 app = FastAPI()
-app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY, https_only=False)
+app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY, https_only=SESSION_HTTPS_ONLY)
 
 TEMPLATES_DIR = os.path.join(os.path.dirname(__file__), "templates")
 templates = Jinja2Templates(directory=TEMPLATES_DIR)

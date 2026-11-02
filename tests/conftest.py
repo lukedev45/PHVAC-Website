@@ -36,9 +36,14 @@ def remove_temp_dir():
     shutil.rmtree(_TMP_DIR, ignore_errors=True)
 
 
+def https_client():
+    # The session cookie is marked Secure, so the test client must talk HTTPS for it to be sent back
+    return TestClient(app_module.app, base_url="https://testserver")
+
+
 @pytest.fixture
 def client():
-    return TestClient(app_module.app)
+    return https_client()
 
 
 @pytest.fixture
@@ -57,7 +62,7 @@ def make_user():
 def login():
     """Return a new client logged in as the given user (fails the test if the login is rejected)."""
     def _login(username, password="pw"):
-        c = TestClient(app_module.app)
+        c = https_client()
         r = c.post("/login", data={"username": username, "password": password}, follow_redirects=False)
         assert r.headers["location"].endswith("/dashboard"), f"login failed for {username}"
         return c
