@@ -92,3 +92,19 @@ def test_expired_reset_link_fails(client, make_user, login):
     r = client.post(f"/reset/{token}", data={"password": "new", "password2": "new"})
     assert "Invalid or expired reset link." in r.text
     login("worker", "pw")  # password unchanged
+
+
+def test_new_reset_link_replaces_older_ones(client, make_user, login):
+    make_user("boss", role="manager")
+    worker_id = make_user("worker")
+    other_id = make_user("other")
+    manager = login("boss")
+    other_token = token_from(manager.post(f"/team/{other_id}/reset-link").text)
+    old_token = token_from(manager.post(f"/team/{worker_id}/reset-link").text)
+    new_token = token_from(manager.post(f"/team/{worker_id}/reset-link").text)
+    assert "Invalid or expired reset link." in client.get(f"/reset/{old_token}").text
+    r = client.post(f"/reset/{new_token}", data={"password": "new", "password2": "new"}, follow_redirects=False)
+    assert r.status_code == 302
+    # A link for a different user is not affected
+    r = client.post(f"/reset/{other_token}", data={"password": "new", "password2": "new"}, follow_redirects=False)
+    assert r.status_code == 302

@@ -520,6 +520,11 @@ def team_reset_link(request: Request, user_id: int, db: Session = Depends(get_db
     target_user = db.get(User, user_id)
     if not target_user:
         raise HTTPException(404, "User not found")
+    # Only the newest link should work, so retire this user's older unused ones
+    old_resets = db.exec(select(PasswordReset).where(PasswordReset.user_id == target_user.id, PasswordReset.used.is_(False))).all()
+    for old in old_resets:
+        old.used = True
+        db.add(old)
     token = secrets.token_urlsafe(32)
     # Store only the hash, so someone who can read the database can't use it to reset passwords
     pr = PasswordReset(user_id=target_user.id, token=hash_token(token))
